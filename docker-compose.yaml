@@ -1,0 +1,43 @@
+version: "3"
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672" # RabbitMQ default port
+      - "15672:15672" # RabbitMQ Management interface
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - my_network
+
+  celery:
+    build: .
+    command: celery -A celery_app worker --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - rabbitmq
+    environment:
+      - CELERY_BROKER_URL=amqp://guest@rabbitmq//
+      - CELERY_RESULT_BACKEND=rpc://
+    networks:
+      - my_network
+
+  app:
+    build: .
+    command: python test_celery.py
+    volumes:
+      - .:/app
+    depends_on:
+      - celery
+    environment:
+      - CELERY_BROKER_URL=amqp://guest@rabbitmq//
+      - CELERY_RESULT_BACKEND=rpc://
+    networks:
+      - my_network
+
+networks:
+  my_network:
+    driver: bridge
